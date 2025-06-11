@@ -12,4 +12,11 @@ module.exports = function (server) {
     const dispatcherService = require('../api/dispatcher/dispatcherService');
     dispatcherService.register(router, '/dispatchers');
 
+    // Process Routes
+    const processService = require('../api/process/processService');
+    processService.register(router, '/process');
+
+
+
+    console.log('Routes registered', router.stack.map(r => r.route.path));
 }
