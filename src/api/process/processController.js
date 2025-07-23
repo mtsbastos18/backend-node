@@ -15,4 +15,9 @@ router.put('/:id', authMiddleware, processService.update);
 // DELETE – já implementado anteriormente
 router.delete('/:id', authMiddleware, processService.delete);
 
+router.put('/:id/status', authMiddleware, processService.updateStatus)
+router.put('/:id/comment', authMiddleware, processService.addComment)
+router.put('/:id/files', authMiddleware, processService.updateFiles)
+router.delete('/:id/comment/:commentId', authMiddleware, processService.deleteComment)
+
 module.exports = router;

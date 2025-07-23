@@ -17,7 +17,7 @@ const phoneSchema = new mongoose.Schema({
 const dispatcherSchema = new mongoose.Schema({
     name: { type: String, required: [true, 'O campo nome é obrigatório'] },
     address: [addressSchema],
-    phoneSchema: [phoneSchema],
+    phones: [phoneSchema],
     email: { type: String, required: true, unique: true },
     cpf: { type: String, required: true, unique: true },
     rg: { type: String, required: true, unique: true },
@@ -25,4 +25,4 @@ const dispatcherSchema = new mongoose.Schema({
     birthDate: { type: Date, required: true },
 });
 
-module.exports = restful.model('Dispatcher', dispatcherSchema);
+module.exports = mongoose.model('Dispatcher', dispatcherSchema);

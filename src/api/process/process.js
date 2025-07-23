@@ -4,7 +4,7 @@ const restful = require('node-restful');
 const processSchema = new mongoose.Schema({
     title: { type: String, required: true },
     description: { type: String, required: true },
-    status: { type: String, required: true, enum: ['open', 'in progress', 'closed'] },
+    status: { type: mongoose.Schema.Types.ObjectId, ref: 'ProcessStatus', required: true },
     priority: { type: String, required: true, enum: ['low', 'medium', 'high'] },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
@@ -12,18 +12,11 @@ const processSchema = new mongoose.Schema({
     dispatcher: { type: mongoose.Schema.Types.ObjectId, ref: 'Dispatcher', required: true },
     files: [{ type: String }],
     comments: [{
-        // user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-        user: { type: String, required: true },
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
         text: { type: String, required: true },
         createdAt: { type: Date, default: Date.now }
     }],
-    history: [{
-        status: { type: String, required: true, enum: ['open', 'in progress', 'closed'] },
-        updatedAt: { type: Date, default: Date.now },
-        // user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
-        user: { type: String, required: true }
-    }]
 });
 
 
-module.exports = restful.model('Process', processSchema);
+module.exports = mongoose.model('Process', processSchema);

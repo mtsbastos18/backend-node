@@ -14,5 +14,7 @@ module.exports = function (server) {
     const authController = require('../api/auth/authController');
     router.use('/auth', authController)
 
-    console.log('Routes registered', router.stack.map(r => r.route?.path || 'middleware'));
+    const processStatusController = require('../api/process/processStatusController');
+    router.use('/process-status', processStatusController);
+
 };

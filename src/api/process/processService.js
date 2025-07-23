@@ -1,9 +1,11 @@
 const createError = require('http-errors');
 const Process = require('./process');
+const Dispatcher = require('../dispatcher/dispatcher');
+
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
-// GET all with pagination and filter by title  
+
 module.exports = {
     async getAll(req, res, next) {
         try {
@@ -28,7 +30,7 @@ module.exports = {
             }
 
             const [results, total] = await Promise.all([
-                Process.find(filter).skip(skip).limit(limit),
+                await Process.find(filter).populate('dispatcher').skip(skip).limit(limit),
                 Process.countDocuments(filter)
             ]);
 
@@ -56,7 +58,18 @@ module.exports = {
 
     async getById(req, res, next) {
         try {
-            const process = await Process.findById(req.params.id);
+            const process = await Process.findById(req.params.id)
+                .populate({
+                    path: 'dispatcher',
+                    model: 'Dispatcher',
+                    select: 'name email cpf rg matricula birthDate address phones'
+                })
+                .populate({
+                    path: 'comments.user',
+                    model: 'User',
+                    select: 'name email cpf rg matricula birthDate address phones'
+                });
+
             if (!process) {
                 throw createError(404, 'Processo não encontrado');
             }
@@ -125,9 +138,10 @@ module.exports = {
 
     async addComment(req, res, next) {
         try {
-            const { user, text } = req.body;
-            if (!user || !text) {
-                throw createError(400, 'Usuário e texto do comentário são obrigatórios.');
+            const { text } = req.body;
+            const user = req.user.id; // Get user from authenticated token
+            if (!text) {
+                throw createError(400, 'Texto do comentário é obrigatório.');
             }
 
             const updatedProcess = await Process.findByIdAndUpdate(
@@ -167,5 +181,25 @@ module.exports = {
         } catch (err) {
             next(err);
         }
-    }
+    },
+
+    async deleteComment(req, res, next) {
+        try {
+            const updatedProcess = await Process.findByIdAndUpdate(
+                req.params.id,
+                { $pull: { comments: { _id: req.params.commentId } } },
+                { new: true, runValidators: true }
+            );
+
+            if (!updatedProcess) {
+                throw createError(404, 'Processo não encontrado');
+            }
+
+            res.json(updatedProcess);
+        } catch (err) {
+            next(err);
+        }
+    },
+
+
 }
