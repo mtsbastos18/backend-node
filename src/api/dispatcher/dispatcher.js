@@ -1,5 +1,4 @@
-const restful = require('node-restful');
-const mongoose = restful.mongoose;
+const mongoose = require('mongoose');
 
 const addressSchema = new mongoose.Schema({
     street: { type: String, required: true },

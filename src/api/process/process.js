@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const restful = require('node-restful');
 
 const processSchema = new mongoose.Schema({
     title: { type: String, required: true },
