@@ -30,7 +30,11 @@ module.exports = {
             }
 
             const [results, total] = await Promise.all([
-                await Process.find(filter).populate('dispatcher').skip(skip).limit(limit),
+                await Process.find(filter)
+                    .populate('dispatcher')
+                    .populate('status', 'name description') // Adicionando o populate para o status
+                    .skip(skip)
+                    .limit(limit),
                 Process.countDocuments(filter)
             ]);
 
@@ -63,6 +67,11 @@ module.exports = {
                     path: 'dispatcher',
                     model: 'Dispatcher',
                     select: 'name email cpf rg matricula birthDate address phones'
+                })
+                .populate({
+                    path: 'status',
+                    model: 'ProcessStatus',
+                    select: 'name description'
                 })
                 .populate({
                     path: 'comments.user',
