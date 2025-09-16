@@ -9,7 +9,14 @@ const processSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now },
     term: { type: String, required: true },
     dispatcher: { type: mongoose.Schema.Types.ObjectId, ref: 'Dispatcher', required: true },
-    files: [{ type: String }],
+    files: [{
+        filename: { type: String },
+        originalname: { type: String },
+        path: { type: String },
+        size: { type: Number },
+        mimetype: { type: String },
+        uploadedAt: { type: Date, default: Date.now }
+    }],
     comments: [{
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
         text: { type: String, required: true },

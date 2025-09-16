@@ -17,4 +17,8 @@ module.exports = function (server) {
     const processStatusController = require('../api/process/processStatusController');
     router.use('/process-status', processStatusController);
 
+    // Lista todas as rotas registradas no console
+    const listEndpoints = require('express-list-endpoints');
+    console.log('Rotas registradas:');
+    console.log(listEndpoints(server));
 };

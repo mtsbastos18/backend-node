@@ -210,5 +210,52 @@ module.exports = {
         }
     },
 
+    async uploadDocuments(req, res) {
+        try {
+            const processId = req.params.id;
+            if (!req.files || req.files.length === 0) {
+                return res.status(400).json({ message: 'Nenhum arquivo enviado' });
+            }
 
+            const filesMeta = req.files.map(f => ({
+                filename: f.filename,
+                originalname: f.originalname,
+                path: f.path,
+                size: f.size,
+                mimetype: f.mimetype,
+                uploadedAt: new Date()
+            }));
+
+            const updated = await Process.findByIdAndUpdate(
+                processId,
+                { $push: { files: { $each: filesMeta } } },
+                { new: true, runValidators: true }
+            );
+            if (!updated) {
+                throw new Error('Processo não encontrado');
+            }
+            res.status(200).json(updated);
+
+        } catch (error) {
+            res.status(400).json({ message: error.message });
+        }
+
+    },
+
+    async downloadDocument(req, res) {
+        try {
+            const process = await Process.findById(req.params.id);
+            if (!process) {
+                return res.status(404).json({ message: 'Processo não encontrado' });
+            }
+            const document = process.files.find(file => file._id.toString() === req.params.documentId);
+            if (!document) {
+                return res.status(404).json({ message: 'Documento não encontrado' });
+            }
+
+            res.download(document.path, document.originalname);
+        } catch (error) {
+            res.status(400).json({ message: error.message });
+        }
+    }
 }

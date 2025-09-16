@@ -6,7 +6,8 @@ const addressSchema = new mongoose.Schema({
     complement: { type: String },
     city: { type: String, required: true },
     state: { type: String, required: true },
-    zipCode: { type: String, required: true }
+    zipCode: { type: String, required: true },
+    type: { type: String, required: true, enum: ['residential', 'commercial'] }
 });
 
 const phoneSchema = new mongoose.Schema({
@@ -21,8 +22,27 @@ const dispatcherSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     cpf: { type: String, required: true, unique: true },
     rg: { type: String, required: true, unique: true },
+    orgao_expedidor: { type: String },
+    uf: { type: String },
+    titulo_eleitoral: { type: String },
+    titulo_eleitoral_zona: { type: String },
+    titulo_eleitoral_secao: { type: String },
+    nome_pai: { type: String },
+    nome_mae: { type: String },
+    naturalidade: { type: String },
+    naturalidade_uf: { type: String },
     matricula: { type: String, required: true, unique: true },
     birthDate: { type: Date, required: true },
+    estado_civil: { type: String, enum: ['solteiro', 'casado', 'divorciado', 'viuvo'] },
+    nome_conjuge: { type: String },
+    nome_escritorio: { type: String, },
+    razao_social: { type: String, },
+    cnpj: { type: String, },
+    alinea: { type: String, },
+    data_registro: { type: Date },
+    nacionalidade: { type: String },
+    obeservacoes: { type: String },
+    sexo: { type: String, enum: ['masculino', 'feminino', 'outro'] },
 });
 
 module.exports = mongoose.model('Dispatcher', dispatcherSchema);
