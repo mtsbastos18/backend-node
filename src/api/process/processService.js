@@ -217,14 +217,38 @@ module.exports = {
                 return res.status(400).json({ message: 'Nenhum arquivo enviado' });
             }
 
-            const filesMeta = req.files.map(f => ({
-                filename: f.filename,
-                originalname: f.originalname,
-                path: f.path,
-                size: f.size,
-                mimetype: f.mimetype,
-                uploadedAt: new Date()
-            }));
+            const filesMeta = []; // Array para guardar os metadados do blob
+
+            for (const file of req.files) {
+                // 1. Cria um nome de arquivo seguro e único
+                const ext = path.extname(file.originalname);
+                const baseName = path.basename(file.originalname, ext)
+                    .replace(/[^a-z0-9]/gi, '_'); // sanitiza
+
+                const uniqueFilename = `${baseName}-${Date.now()}${ext}`;
+
+                // 2. Define o 'pathname' (caminho) no blob
+                const blobPathname = `uploads/processes/${processId}/${uniqueFilename}`;
+
+                // 3. Faz o upload para o Vercel Blob
+                const blob = await put(
+                    blobPathname,
+                    file.buffer, // <--- O buffer do 'memoryStorage'
+                    {
+                        access: 'public'  // Garante que o arquivo seja publicamente acessível
+                    }
+                );
+
+                // 4. Salva os metadados do blob
+                filesMeta.push({
+                    filename: blob.pathname, // O 'pathname' no blob (ex: uploads/...)
+                    originalname: file.originalname,
+                    url: blob.url, // A URL pública para acesso
+                    size: file.size,
+                    mimetype: file.mimetype,
+                    uploadedAt: new Date()
+                });
+            }
 
             const updated = await Process.findByIdAndUpdate(
                 processId,
@@ -249,11 +273,10 @@ module.exports = {
                 return res.status(404).json({ message: 'Processo não encontrado' });
             }
             const document = process.files.find(file => file._id.toString() === req.params.documentId);
-            if (!document) {
-                return res.status(404).json({ message: 'Documento não encontrado' });
+            if (!document.url) {
+                return res.status(400).json({ message: 'URL do documento não encontrada.' });
             }
-
-            res.download(document.path, document.originalname);
+            res.redirect(document.url);
         } catch (error) {
             res.status(400).json({ message: error.message });
         }

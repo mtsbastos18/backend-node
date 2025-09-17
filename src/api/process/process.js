@@ -15,7 +15,8 @@ const processSchema = new mongoose.Schema({
         path: { type: String },
         size: { type: Number },
         mimetype: { type: String },
-        uploadedAt: { type: Date, default: Date.now }
+        uploadedAt: { type: Date, default: Date.now },
+        url: { type: String } // URL pública do arquivo no Vercel Blob
     }],
     comments: [{
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

@@ -24,21 +24,12 @@ router.put('/:id/comment', authMiddleware, processService.addComment)
 router.put('/:id/files', authMiddleware, processService.updateFiles)
 router.delete('/:id/comment/:commentId', authMiddleware, processService.deleteComment)
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const processId = req.params.id || 'unknown';
-        const dest = path.join(__dirname, '..', 'uploads', 'processes', processId);
-        fs.mkdirSync(dest, { recursive: true });
-        cb(null, dest);
-    },
-    filename: (req, file, cb) => {
-        const unique = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname);
-        cb(null, `${unique}${ext}`);
-    }
-});
+const storage = multer.memoryStorage();
 
-const upload = multer({ storage });
+const upload = multer({
+    storage,
+    limits: { fileSize: 10 * 1024 * 1024 } // Limite de 10MB (ajuste conforme necessário)
+});
 
 router.post('/:id/documents', authMiddleware, upload.array('documents', 20), processService.uploadDocuments);
 router.get('/:id/documents/:documentId', authMiddleware, processService.downloadDocument);
