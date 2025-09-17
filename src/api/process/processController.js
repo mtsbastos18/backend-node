@@ -1,8 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 
 const authMiddleware = require('../../config/authMiddleware');
 const processService = require('./processService');
@@ -33,4 +31,6 @@ const upload = multer({
 
 router.post('/:id/documents', authMiddleware, upload.array('documents', 20), processService.uploadDocuments);
 router.get('/:id/documents/:documentId', authMiddleware, processService.downloadDocument);
+router.delete('/:id/documents/:documentId', authMiddleware, processService.deleteDocument);
+
 module.exports = router;

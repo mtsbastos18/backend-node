@@ -1,7 +1,8 @@
 const createError = require('http-errors');
 const Process = require('./process');
 const Dispatcher = require('../dispatcher/dispatcher');
-
+const { put, del } = require('@vercel/blob'); // <--- ADICIONAR
+const path = require('path'); // <--- ADICIONAR
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
@@ -278,6 +279,46 @@ module.exports = {
             }
             res.redirect(document.url);
         } catch (error) {
+            res.status(400).json({ message: error.message });
+        }
+    },
+
+    async deleteDocument(req, res) {
+        try {
+            const { id: processId, documentId } = req.params;
+
+            // 1. Encontra o processo e o documento para pegar a URL
+            const process = await Process.findById(processId);
+            if (!process) {
+                return res.status(404).json({ message: 'Processo não encontrado' });
+            }
+
+            const document = process.files.find(file => file._id.toString() === documentId);
+            if (!document) {
+                return res.status(404).json({ message: 'Documento não encontrado' });
+            }
+
+            if (!document.url) {
+                return res.status(400).json({ message: 'URL do documento não encontrada, não é possível deletar do Blob.' });
+            }
+
+            // 2. Deleta o arquivo do Vercel Blob
+            await del(document.url);
+
+            // 3. Remove a referência do arquivo do MongoDB
+            const updatedProcess = await Process.findByIdAndUpdate(
+                processId,
+                { $pull: { files: { _id: documentId } } }, // Remove o item do array 'files'
+                { new: true }
+            );
+
+            res.status(200).json({
+                message: 'Arquivo deletado com sucesso',
+                process: updatedProcess
+            });
+
+        } catch (error) {
+            console.error('Erro ao deletar documento:', error);
             res.status(400).json({ message: error.message });
         }
     }
