@@ -26,7 +26,7 @@ const storage = multer.memoryStorage();
 
 const upload = multer({
     storage,
-    limits: { fileSize: 10 * 1024 * 1024 } // Limite de 10MB (ajuste conforme necessário)
+    limits: { fileSize: 50 * 1024 * 1024 } // Limite de 10MB (ajuste conforme necessário)
 });
 
 router.post('/:id/documents', authMiddleware, upload.array('documents', 20), processService.uploadDocuments);
