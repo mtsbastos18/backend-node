@@ -1,11 +1,18 @@
 const createError = require('http-errors');
 const Process = require('./process');
 const Dispatcher = require('../dispatcher/dispatcher');
-const { put, del } = require('@vercel/blob'); // <--- ADICIONAR
 const path = require('path'); // <--- ADICIONAR
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
+// ADICIONE a importação do Google Cloud Storage
+const { Storage } = require('@google-cloud/storage');
+// Instancie o cliente do GCS.
+// Como você está no Cloud Run, a autenticação é automática!
+const storage = new Storage();
+
+// Pegue o nome do bucket da variável de ambiente
+const bucketName = process.env.GCS_BUCKET_NAME;
 
 module.exports = {
     async getAll(req, res, next) {
@@ -218,39 +225,59 @@ module.exports = {
                 return res.status(400).json({ message: 'Nenhum arquivo enviado' });
             }
 
-            const filesMeta = []; // Array para guardar os metadados do blob
+            // Pega a referência do nosso bucket
+            if (!bucketName) {
+                throw new Error('GCS_BUCKET_NAME não está configurado nas variáveis de ambiente.');
+            }
+            const bucket = storage.bucket(bucketName);
+
+            const filesMeta = []; // Array para guardar os metadados
 
             for (const file of req.files) {
-                // 1. Cria um nome de arquivo seguro e único
+                // 1. Cria um nome de arquivo seguro e único (sua lógica está ótima)
                 const ext = path.extname(file.originalname);
                 const baseName = path.basename(file.originalname, ext)
-                    .replace(/[^a-z0-9]/gi, '_'); // sanitiza
-
+                    .replace(/[^a-z0-9_.-]/gi, '_'); // sanitiza
                 const uniqueFilename = `${baseName}-${Date.now()}${ext}`;
 
-                // 2. Define o 'pathname' (caminho) no blob
+                // 2. Define o 'pathname' (caminho) no bucket
                 const blobPathname = `uploads/processes/${processId}/${uniqueFilename}`;
 
-                // 3. Faz o upload para o Vercel Blob
-                const blob = await put(
-                    blobPathname,
-                    file.buffer, // <--- O buffer do 'memoryStorage'
-                    {
-                        access: 'public'  // Garante que o arquivo seja publicamente acessível
-                    }
-                );
+                // 3. Pega a referência do arquivo no GCS
+                const blob = bucket.file(blobPathname);
 
-                // 4. Salva os metadados do blob
+                // 4. Cria um stream de escrita e o envolve em uma Promise
+                // Isso é necessário para usar await com streams
+                await new Promise((resolve, reject) => {
+                    const blobStream = blob.createWriteStream({
+                        resumable: false, // Bom para uploads pequenos de buffer
+                        contentType: file.mimetype,
+                    });
+
+                    blobStream.on('error', (err) => reject(err));
+
+                    // 'finish' é chamado quando o upload está completo
+                    blobStream.on('finish', () => resolve());
+
+                    // Envia o buffer do multer para o GCS
+                    blobStream.end(file.buffer);
+                });
+
+                // 5. Monta a URL pública (requer que o bucket seja público)
+                const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+
+                // 6. Salva os metadados
                 filesMeta.push({
-                    filename: blob.pathname, // O 'pathname' no blob (ex: uploads/...)
+                    filename: blob.name, // Salva o path completo (ex: uploads/...)
                     originalname: file.originalname,
-                    url: blob.url, // A URL pública para acesso
+                    url: publicUrl, // A URL pública para acesso
                     size: file.size,
                     mimetype: file.mimetype,
                     uploadedAt: new Date()
                 });
             }
 
+            // O resto da sua lógica de salvar no MongoDB está perfeita
             const updated = await Process.findByIdAndUpdate(
                 processId,
                 { $push: { files: { $each: filesMeta } } },
@@ -262,9 +289,9 @@ module.exports = {
             res.status(200).json(updated);
 
         } catch (error) {
+            console.error('Erro no upload para GCS:', error);
             res.status(400).json({ message: error.message });
         }
-
     },
 
     async downloadDocument(req, res) {
@@ -287,7 +314,7 @@ module.exports = {
         try {
             const { id: processId, documentId } = req.params;
 
-            // 1. Encontra o processo e o documento para pegar a URL
+            // 1. Encontra o processo e o documento
             const process = await Process.findById(processId);
             if (!process) {
                 return res.status(404).json({ message: 'Processo não encontrado' });
@@ -298,17 +325,21 @@ module.exports = {
                 return res.status(404).json({ message: 'Documento não encontrado' });
             }
 
-            if (!document.url) {
-                return res.status(400).json({ message: 'URL do documento não encontrada, não é possível deletar do Blob.' });
+            // Usamos o 'filename' (path do arquivo) que salvamos, não a URL
+            if (!document.filename) {
+                return res.status(400).json({ message: 'Path do arquivo não encontrado, não é possível deletar do GCS.' });
             }
 
-            // 2. Deleta o arquivo do Vercel Blob
-            await del(document.url);
+            // 2. Deleta o arquivo do Google Cloud Storage
+            const bucket = storage.bucket(bucketName);
+            const blob = bucket.file(document.filename); // ex: 'uploads/processes/...'
 
-            // 3. Remove a referência do arquivo do MongoDB
+            await blob.delete();
+
+            // 3. Remove a referência do arquivo do MongoDB (sua lógica está ótima)
             const updatedProcess = await Process.findByIdAndUpdate(
                 processId,
-                { $pull: { files: { _id: documentId } } }, // Remove o item do array 'files'
+                { $pull: { files: { _id: documentId } } },
                 { new: true }
             );
 
@@ -318,7 +349,7 @@ module.exports = {
             });
 
         } catch (error) {
-            console.error('Erro ao deletar documento:', error);
+            console.error('Erro ao deletar documento do GCS:', error);
             res.status(400).json({ message: error.message });
         }
     }
