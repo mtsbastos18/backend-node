@@ -3,8 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 
 const authMiddleware = require('../../config/authMiddleware');
-const processService = require('./processService');
-const { route } = require('./processStatusController');
+const processService = require('../services/processService');
 
 router.get('/', authMiddleware, processService.getAll)
 router.get('/:id', authMiddleware, processService.getById)

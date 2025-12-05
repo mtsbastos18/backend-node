@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const authMiddleware = require('../../config/authMiddleware');
-const processStatusService = require('./processStatusService');
+const processStatusService = require('../services/processStatusService');
 
 router.get('/', authMiddleware, processStatusService.getAll);
 router.get('/:id', authMiddleware, processStatusService.getById);

@@ -4,20 +4,20 @@ module.exports = function (server) {
     server.use('/api', router);
 
     // Dispatcher (com router do Express)
-    const dispatcherRoutes = require('../api/dispatcher/dispatcherController');
+    const dispatcherRoutes = require('../api/controllers/dispatcherController');
     router.use('/dispatchers', dispatcherRoutes); // ✅ AQUI
 
     // Process (continua com restful)
-    const processRoutes = require('../api/process/processController');
+    const processRoutes = require('../api/controllers/processController');
     router.use('/processes', processRoutes); // ✅ AQUI
 
-    const authController = require('../api/auth/authController');
+    const authController = require('../api/controllers/authController');
     router.use('/auth', authController)
 
-    const processStatusController = require('../api/process/processStatusController');
+    const processStatusController = require('../api/controllers/processStatusController');
     router.use('/process-status', processStatusController);
 
-    const dashboardController = require('../api/dashboard/dashboardController');
+    const dashboardController = require('../api/controllers/dashboardController');
     router.use('/dashboard', dashboardController); // ✅ AQUI
 
     // Lista todas as rotas registradas no console

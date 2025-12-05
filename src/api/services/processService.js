@@ -1,6 +1,6 @@
 const createError = require('http-errors');
-const Process = require('./process');
-const Dispatcher = require('../dispatcher/dispatcher');
+const Process = require('../models/process');
+const Dispatcher = require('../models/dispatcher');
 const path = require('path'); // <--- ADICIONAR
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
@@ -17,10 +17,17 @@ const bucketName = process.env.GCS_BUCKET_NAME;
 module.exports = {
     async getAll(req, res, next) {
         try {
-            let { page = DEFAULT_PAGE, limit = DEFAULT_LIMIT, title } = req.query;
+            let { page = DEFAULT_PAGE, limit = DEFAULT_LIMIT, title, sort = 'title', order = 'asc' } = req.query;
 
             page = parseInt(page);
             limit = parseInt(limit);
+
+            // Validação simples para os parâmetros de ordenação
+            const allowedSortFields = ['title', 'createdAt', 'updatedAt', 'priority', 'term', 'status', 'dispatcher.name'];
+            if (!allowedSortFields.includes(sort)) {
+                sort = 'title';
+            }
+            const sortOrder = String(order).toLowerCase() === 'desc' ? -1 : 1;
 
             if (isNaN(page) || page < 1) {
                 throw createError(400, 'O parâmetro "page" deve ser um número inteiro positivo');
@@ -37,14 +44,65 @@ module.exports = {
                 filter.title = { $regex: title, $options: 'i' }; // busca insensível a maiúsculas/minúsculas
             }
 
-            const [results, total] = await Promise.all([
-                await Process.find(filter)
-                    .populate('dispatcher')
-                    .populate('status', 'name description') // Adicionando o populate para o status
-                    .skip(skip)
-                    .limit(limit),
-                Process.countDocuments(filter)
-            ]);
+            let results;
+            let total;
+
+            // Caso especial: ordenar por campo do dispatcher populado
+            if (sort === 'dispatcher.name') {
+                // Para ordenar por campo do documento referenciado é necessário usar aggregation + $lookup
+                const matchStage = {};
+                if (title) {
+                    matchStage.title = { $regex: title, $options: 'i' };
+                }
+
+                const pipeline = [
+                    { $match: matchStage },
+                    {
+                        $lookup: {
+                            from: 'dispatchers',
+                            localField: 'dispatcher',
+                            foreignField: '_id',
+                            as: 'dispatcher'
+                        }
+                    },
+                    { $unwind: { path: '$dispatcher', preserveNullAndEmptyArrays: true } },
+                    {
+                        $lookup: {
+                            from: 'processstatuses',
+                            localField: 'status',
+                            foreignField: '_id',
+                            as: 'status'
+                        }
+                    },
+                    { $unwind: { path: '$status', preserveNullAndEmptyArrays: true } },
+                    {
+                        $facet: {
+                            data: [
+                                { $sort: { 'dispatcher.name': sortOrder } },
+                                { $skip: skip },
+                                { $limit: limit }
+                            ],
+                            total: [{ $count: 'count' }]
+                        }
+                    }
+                ];
+
+                const aggResult = await Process.aggregate(pipeline).collation({ locale: 'pt', strength: 2 }).exec();
+                const facet = aggResult[0] || { data: [], total: [] };
+                results = facet.data;
+                total = facet.total[0] ? facet.total[0].count : 0;
+            } else {
+                [results, total] = await Promise.all([
+                    Process.find(filter)
+                        .populate('dispatcher')
+                        .populate('status', 'name description') // Adicionando o populate para o status
+                        .collation({ locale: 'pt', strength: 2 }) // ordenação case-insensitive (PT)
+                        .sort({ [sort]: sortOrder })
+                        .skip(skip)
+                        .limit(limit),
+                    Process.countDocuments(filter)
+                ]);
+            }
 
             const totalPages = Math.ceil(total / limit);
 
@@ -74,7 +132,7 @@ module.exports = {
                 .populate({
                     path: 'dispatcher',
                     model: 'Dispatcher',
-                    select: 'name email cpf rg matricula birthDate address phones'
+                    select: 'name situacao'
                 })
                 .populate({
                     path: 'status',
@@ -108,6 +166,13 @@ module.exports = {
 
     async update(req, res, next) {
         try {
+            const { dispatcher } = req.body;
+            if (dispatcher) {
+                const dipatcher = await Dispatcher.findByIdAndUpdate(
+                    dispatcher._id,
+                    dispatcher,
+                );
+            }
             const updatedProcess = await Process.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
             if (!updatedProcess) {
                 throw createError(404, 'Processo não encontrado');

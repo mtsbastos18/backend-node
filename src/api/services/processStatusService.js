@@ -1,4 +1,4 @@
-const ProcessStatus = require('./processStatus');
+const ProcessStatus = require('../models/processStatus');
 
 exports.getAll = async (req, res) => {
     try {

@@ -7,7 +7,7 @@ const addressSchema = new mongoose.Schema({
     city: { type: String, required: true },
     state: { type: String, required: true },
     zipCode: { type: String, required: true },
-    type: { type: String, required: true, enum: ['residential', 'commercial'] }
+    type: { type: String, enum: ['residential', 'commercial'] }
 });
 
 const phoneSchema = new mongoose.Schema({
@@ -43,6 +43,8 @@ const dispatcherSchema = new mongoose.Schema({
     nacionalidade: { type: String },
     obeservacoes: { type: String },
     sexo: { type: String, enum: ['masculino', 'feminino', 'outro'] },
+    situacao: { type: String, enum: ['ativo', 'inativo', 'suspenso'], default: 'ativo' }
 });
+
 
 module.exports = mongoose.model('Dispatcher', dispatcherSchema);

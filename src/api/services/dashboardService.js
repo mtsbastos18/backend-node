@@ -1,5 +1,5 @@
-const Dispatcher = require('../dispatcher/dispatcher');
-const Process = require('../process/process');
+const Dispatcher = require('../models/dispatcher');
+const Process = require('../models/process');
 
 class DashboardService {
     async getDashboardData() {
